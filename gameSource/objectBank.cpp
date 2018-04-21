@@ -3153,18 +3153,23 @@ int getPrevPersonObject( int inCurrentPersonObjectID ) {
 
 
 
+static int defaultDeathMarkerID = 0;
 
 int getRandomDeathMarker() {
-
-
-    for( int i=0; i<mapSize; i++ ) {
-        if( idMap[i] != NULL ) {
-            if( idMap[i]->deathMarker ) {
-                return i;
-                }
-            }
-        }
-    return 0;
+	// changed it so it behaves similarly to the original code but only runs the check once and then from that
+	// it will just return the same ID - this should ensure that it still works should the initial grave item be altered -tyrant
+	
+	if (defaultDeathMarkerID == 0) {
+		for( int i=0; i<mapSize; i++ ) {
+			if( idMap[i] != NULL ) {
+				if( idMap[i]->deathMarker ) {
+					defaultDeathMarkerID = i;
+					}
+				}
+			}
+		}
+	
+	return defaultDeathMarkerID;
     }
 
 

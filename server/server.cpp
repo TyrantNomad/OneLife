@@ -7677,6 +7677,14 @@ int main() {
                     if( nextPlayer->customGraveID > 0 ) {
                         deathID = nextPlayer->customGraveID;
                         }
+					else if (nextPlayer->lifeStartTimeSeconds < 300 ) {
+						//60551 is the baby grave ID
+						deathID = 60551;
+						}
+					else if (nextPlayer->lifeStartTimeSeconds < 3480 ) {
+						//60550 is the wormy grave ID
+						deathID =60550;
+					}
 
                     if( deathID > 0 ) {
                         

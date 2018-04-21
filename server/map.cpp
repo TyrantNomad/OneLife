@@ -860,6 +860,8 @@ static void mapCacheInsert( int inX, int inY, int inID ) {
     
 
 static int getBaseMapCallCount = 0;
+	// load density from settings if able, instead of being hard-coded -tyrant
+	// this is set in the map init
 
 
 static int getBaseMap( int inX, int inY ) {
@@ -888,7 +890,7 @@ static int getBaseMap( int inX, int inY ) {
     density = sigmoid( density, 0.1 );
     
     // scale
-    density *= .4;
+    density *= mapDensityFraction;
     // good for zoom in to map for teaser
     //density = .70;
     
@@ -906,11 +908,10 @@ static int getBaseMap( int inX, int inY ) {
         int pickedBiome = getMapBiomeIndex( inX, inY, &secondPlace,
                                             &secondPlaceGap );
         
-        if( pickedBiome == -1 ) {
-            mapCacheInsert( inX, inY, 0 );
-            return 0;
-            }
-        
+		if( pickedBiome == -1 ) {
+			mapCacheInsert( inX, inY, 0 );
+			return 0;
+			}
         lastCheckedBiome = biomes[pickedBiome];
         
 
@@ -929,15 +930,17 @@ static int getBaseMap( int inX, int inY ) {
         
         setXYRandomSeed( 348763 );
         
-        if( getXYRandom( inX, inY ) > 
-            .5 + secondPlaceReduction * secondPlaceGap ) {
-        
-            // note that lastCheckedBiome is NOT changed, so ground
-            // shows the true, first-place biome, but object placement
-            // follows the second place biome
-            pickedBiome = secondPlace;
-            }
-        
+		// do not allow objects to spawn in the wrong biome by default, added setting to change that -tyrant
+        if ( useSecondPlaceBiome ) {
+			if( getXYRandom( inX, inY ) > 
+				.5 + secondPlaceReduction * secondPlaceGap ) {
+			
+				// note that lastCheckedBiome is NOT changed, so ground
+				// shows the true, first-place biome, but object placement
+				// follows the second place biome
+				pickedBiome = secondPlace;
+				}
+			}
 
         int numObjects = naturalMapIDs[pickedBiome].size();
 
@@ -1278,10 +1281,13 @@ static void writeEveRadius() {
 
 
 void doubleEveRadius() {
-    if( eveRadius < 1024 ) {
+	//disabled as I'm using a steady growth rate per eve
+    /*
+	if( eveRadius < 1024 ) {
         eveRadius *= 2;
         writeEveRadius();
         }
+	*/
     }
 
 
@@ -1809,7 +1815,12 @@ int cleanMap() {
     }
 
 
-
+	// used later on for map gen -tyrant
+static float mapDensityFraction = 0.4f;
+	// used later to decide if we want objects to spawn in the wrong biome at borders -tyrant
+static char useSecondPlaceBiome = false;
+	// used to increase the eve spawn radius gradually, starting from 0,0
+static int spawnRadiusGrowthRate = 10;
 
 void initMap() {
     initDBCache();
@@ -1817,7 +1828,14 @@ void initMap() {
 
     mapCacheClear();
     
+	// tyrant server settings
+	mapDensityFraction = SettingsManager::getFloatSetting( "mapDensityFraction", 0.4f );
+	useSecondPlaceBiome = SettingsManager::getIntSetting( "useSecondPlaceBiome", 0 );
+	spawnRadiusGrowthRate = SettingsManager::getIntSetting( "spawnRadiusGrowthRate", 10);
+	// tyrant server settings
+	
     edgeObjectID = SettingsManager::getIntSetting( "edgeObject", 0 );
+
     
     minEveCampRespawnAge = 
         SettingsManager::getFloatSetting( "minEveCampRespawnAge", 60.0f );
@@ -5261,8 +5279,11 @@ void getEvePosition( char *inEmail, int *outX, int *outY ) {
             // post-startup eve location has been used too many times
             // jump away in random direction
 
-            int jump = SettingsManager::getIntSetting( "nextEveJump", 2000 );
-            
+            int jump = SettingsManager::getIntSetting( "nextEveJump", 10 ) + spawnRadiusGrowthRate;
+            // instead of starting with a large number, everyone spawns close to 0,0 and slowly move away as more eves spawn -tyrant
+			SettingsManager::setSetting( "nextEveJump", jump);
+			
+			
             doublePair delta = { (double)jump, 0 };
             delta = rotate( delta,
                             randSource.getRandomBoundedDouble( 0, 2 * M_PI ) );
@@ -5288,8 +5309,9 @@ void getEvePosition( char *inEmail, int *outX, int *outY ) {
         
 
         // put Eve in radius 50 around this location
+		// changed 50 to 10 for radius around location -tyrant
         forceEveToBorder = true;
-        currentEveRadius = 50;
+        currentEveRadius = 10;
         }
     
 
